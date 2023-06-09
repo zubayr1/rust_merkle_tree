@@ -58,7 +58,7 @@ fn create_proof_bytes(indices_to_prove: Vec<usize>, merkle_tree: MerkleTree<Sha2
 }
 
 
-fn merkle_proof(index: usize, proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>, leaf_values_to_prove: Vec<String>, root: [u8; 32], len: usize) -> bool
+fn merkle_proof(proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>, leaf_values_to_prove: Vec<String>, root: [u8; 32], len: usize) -> bool
 {
     let proof = MerkleProof::<Sha256>::try_from(proof_bytes).unwrap();
 
@@ -67,7 +67,7 @@ fn merkle_proof(index: usize, proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>
         .map(|x| hash(x.as_bytes()))
         .collect();
 
-    let leaves_to_proof = leaves_to_proof.get(index..index+1).ok_or("can't get leaves to prove").unwrap();
+    let leaves_to_proof = leaves_to_proof.get(0..1).ok_or("can't get leaves to prove").unwrap();
 
     println!("{:?}", leaves_to_proof);
 
@@ -83,7 +83,7 @@ fn merkle_proof(index: usize, proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>
 
 fn main() {
     
-    let index = 4;
+    let index = 2;
 
     let mut leaf_values: Vec<String> = Vec::new();
     leaf_values.push("a".to_string());
@@ -111,13 +111,8 @@ fn main() {
 
   
     let mut leaf_values_to_prove: Vec<String> = Vec::new(); 
-    leaf_values_to_prove.push("a".to_string());
-    leaf_values_to_prove.push("b".to_string());
     leaf_values_to_prove.push("c".to_string());
-    leaf_values_to_prove.push("d".to_string());
-    leaf_values_to_prove.push("e".to_string());
 
-    println!("{:?}", leaf_values_to_prove[index]);
 
     
     let indices_to_prove = vec![index];
@@ -127,7 +122,7 @@ fn main() {
     let merkle_root = merkle_tree.root().ok_or("couldn't get the merkle root").unwrap();
 
 
-    let proof = merkle_proof(index, proof_bytes, indices_to_prove, leaf_values_to_prove, merkle_root, merkle_tree.leaves_len());
+    let proof = merkle_proof(proof_bytes, indices_to_prove, leaf_values_to_prove, merkle_root, merkle_tree.leaves_len());
 
     println!("{}", proof);
 
