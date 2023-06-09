@@ -58,7 +58,7 @@ fn create_proof_bytes(indices_to_prove: Vec<usize>, merkle_tree: MerkleTree<Sha2
 }
 
 
-fn merkle_proof(proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>, leaf_values_to_prove: Vec<String>, root: [u8; 32], len: usize) -> bool
+fn merkle_proof(index: usize, proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>, leaf_values_to_prove: Vec<String>, root: [u8; 32], len: usize) -> bool
 {
     let proof = MerkleProof::<Sha256>::try_from(proof_bytes).unwrap();
 
@@ -67,7 +67,11 @@ fn merkle_proof(proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>, leaf_values_
         .map(|x| hash(x.as_bytes()))
         .collect();
 
-    let leaves_to_proof = leaves_to_proof.get(0..leaves_to_proof.len()).ok_or("can't get leaves to prove").unwrap();
+    let leaves_to_proof = leaves_to_proof.get(index..index+2).ok_or("can't get leaves to prove").unwrap();
+
+    // println!("{:?}", leaves_to_proof);
+
+    println!("{:?}", root);
 
     if proof.verify(root, &indices_to_prove, leaves_to_proof, len)
     {
@@ -79,21 +83,20 @@ fn merkle_proof(proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>, leaf_values_
 
 
 fn main() {
-    println!("Hello, world!");
+    
+    let index = 2;
 
     let mut leaf_values: Vec<String> = Vec::new();
     leaf_values.push("a".to_string());
     leaf_values.push("b".to_string());
     leaf_values.push("c".to_string());
 
-    let merkle_tree = create_tree(leaf_values);
+    let merkle_tree = create_tree(leaf_values.clone());
 
     
     let root = get_root(merkle_tree.clone());
 
     println!("{}", root);
-
-
 
 
     let mut leaf_values: Vec<String> = Vec::new();
@@ -101,31 +104,34 @@ fn main() {
     leaf_values.push("e".to_string());
 
 
-    let merkle_tree: MerkleTree<Sha256> = append_to_tree(merkle_tree.clone(), leaf_values);
+    let merkle_tree: MerkleTree<Sha256> = append_to_tree(merkle_tree.clone(), leaf_values.clone());
 
     let root = get_root(merkle_tree.clone());
 
-    println!("{}", root);
+    println!("{:?}", hash(root.as_bytes()));
 
   
-
-
-    let mut leaf_values_to_prove: Vec<String> = Vec::new();
+    let mut leaf_values_to_prove: Vec<String> = Vec::new(); 
     leaf_values_to_prove.push("a".to_string());
     leaf_values_to_prove.push("b".to_string());
     leaf_values_to_prove.push("c".to_string());
+    leaf_values_to_prove.push("d".to_string());
+    leaf_values_to_prove.push("e".to_string());
 
 
-    let indices_to_prove = vec![0, 3];
+    
+    let indices_to_prove = vec![index, index+1];
 
     let proof_bytes = create_proof_bytes(indices_to_prove.clone(), merkle_tree.clone());
 
     let merkle_root = merkle_tree.root().ok_or("couldn't get the merkle root").unwrap();
 
 
-    let proof = merkle_proof(proof_bytes, indices_to_prove, leaf_values_to_prove, merkle_root, merkle_tree.leaves_len());
+    let proof = merkle_proof(index, proof_bytes, indices_to_prove, leaf_values_to_prove, merkle_root, merkle_tree.leaves_len());
 
     println!("{}", proof);
-    
+
+
+   
 
 }
