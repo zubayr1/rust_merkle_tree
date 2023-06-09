@@ -67,11 +67,10 @@ fn merkle_proof(index: usize, proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>
         .map(|x| hash(x.as_bytes()))
         .collect();
 
-    let leaves_to_proof = leaves_to_proof.get(index..index+2).ok_or("can't get leaves to prove").unwrap();
+    let leaves_to_proof = leaves_to_proof.get(index..index+1).ok_or("can't get leaves to prove").unwrap();
 
-    // println!("{:?}", leaves_to_proof);
+    println!("{:?}", leaves_to_proof);
 
-    println!("{:?}", root);
 
     if proof.verify(root, &indices_to_prove, leaves_to_proof, len)
     {
@@ -84,7 +83,7 @@ fn merkle_proof(index: usize, proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>
 
 fn main() {
     
-    let index = 2;
+    let index = 4;
 
     let mut leaf_values: Vec<String> = Vec::new();
     leaf_values.push("a".to_string());
@@ -118,9 +117,10 @@ fn main() {
     leaf_values_to_prove.push("d".to_string());
     leaf_values_to_prove.push("e".to_string());
 
+    println!("{:?}", leaf_values_to_prove[index]);
 
     
-    let indices_to_prove = vec![index, index+1];
+    let indices_to_prove = vec![index];
 
     let proof_bytes = create_proof_bytes(indices_to_prove.clone(), merkle_tree.clone());
 
