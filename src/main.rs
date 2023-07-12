@@ -3,6 +3,149 @@ use rs_merkle::MerkleProof;
 use rs_merkle::algorithms::Sha256;
 use sha2::{digest::FixedOutput, Digest};
 
+
+extern crate reed_solomon;
+use reed_solomon::Encoder;
+use reed_solomon::Decoder;
+
+use reed_solomon_erasure::galois_8::ReedSolomon;
+
+
+pub fn reedsomononenc(data: &[u8], num_nodes: usize, num_faults: usize)
+{
+    let num_data_shards = num_nodes - num_faults;
+    let shard_size = (data.len() + num_data_shards - 1) / num_data_shards;
+    let mut data_with_suffix = data.to_vec();
+    let suffix_size = shard_size * num_data_shards - data.len();
+    for _ in 0..suffix_size {
+        data_with_suffix.push(suffix_size as u8)
+    }
+    let mut result = Vec::with_capacity(num_nodes);
+    for shard in 0..num_data_shards {
+        result.push(data_with_suffix[shard * shard_size..(shard + 1) * shard_size].to_vec());
+    }
+    for _shard in 0..num_faults {
+        result.push(vec![0; shard_size]);
+        
+    }
+
+    println!("{:?}", result);
+
+    let r = ReedSolomon::new(num_data_shards, num_faults).unwrap();
+    r.encode(&mut result).unwrap();
+
+    println!("{:?}", result);
+
+
+    let mut received: Vec<_> = result.iter().cloned().map(Some).collect();
+    received[0] = None;
+
+
+
+    r.reconstruct(&mut received).unwrap();
+    let mut result = Vec::with_capacity(num_data_shards * received[0].as_ref().unwrap().len());
+    for shard in 0..num_data_shards {
+        result.append(&mut received[shard].clone().unwrap());
+    }
+    result.truncate(result.len() - *result.last().unwrap() as usize);
+
+    println!("{:?}", result);
+
+    let string: String = String::from_utf8_lossy(&result).into();
+
+    println!("{:?}", string);
+    
+}
+
+pub fn encoder(pvss_data: &[u8], mut e: usize) -> Vec<String>
+{
+    if e==0
+    {
+        e=1;
+    }
+    // Length of error correction code
+    let ecc_len = 2*e;
+
+    let enc = Encoder::new(ecc_len);
+    
+
+    // Encode data
+    let encoded = enc.encode(&pvss_data[..]);
+
+    // Simulate some transmission errors
+    // let mut corrupted = *encoded;
+    // for i in 0..e {
+    //     corrupted[i] = 0x0;
+    // }
+
+
+    // let orig_str = std::str::from_utf8(pvss_data).unwrap();
+    
+    println!("{:?},   {:?}", encoded, encoded.ecc());
+
+    // let dec = Decoder::new(ecc_len);
+
+    let mut corrupted = *encoded;
+    // // for i in 0..e {
+    // //     corrupted[i] = 0x0;
+    // // }
+
+    // // Try to recover data
+    // let known_erasures = [0];
+
+    // let recovered = dec.correct(&mut corrupted, Some(&known_erasures)).unwrap();
+
+
+    // let recv_str = std::str::from_utf8(recovered.data()).unwrap();
+
+
+    println!("{:?}", corrupted);
+
+    
+    let mut leaves: Vec<String> = Vec::new();
+
+    for i in encoded.ecc()
+    {
+        leaves.push(i.to_string());
+    }
+
+    return leaves;
+
+    
+
+}
+
+pub fn decoder(encoded: reed_solomon::Buffer, e: usize)
+{
+    // Length of error correction code
+    let ecc_len = 2*e;
+
+    let dec = Decoder::new(ecc_len);
+   
+
+    // Simulate some transmission errors
+    let mut corrupted = *encoded;
+    // for i in 0..e {
+    //     corrupted[i] = 0x0;
+    // }
+
+    // Try to recover data
+    let known_erasures = [0];
+
+    let recovered = dec.correct(&mut corrupted, Some(&known_erasures)).unwrap();
+
+
+    let recv_str = std::str::from_utf8(recovered.data()).unwrap();
+
+    println!("{:?}", recv_str);
+
+}
+
+
+
+
+
+
 fn hash(data: &[u8]) -> [u8; 32] 
 {
     let mut hasher = sha2::Sha256::new();
@@ -82,49 +225,85 @@ fn merkle_proof(proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>, leaf_values_
 
 
 fn main() {
-    
-    let index = 2;
 
-    let mut leaf_values: Vec<String> = Vec::new();
-    leaf_values.push("a".to_string());
-    leaf_values.push("b".to_string());
-    leaf_values.push("c".to_string());
 
-    let merkle_tree = create_tree(leaf_values.clone());
+    reedsomononenc(b"pvss", 12, 4);
 
     
-    let root = get_root(merkle_tree.clone());
+    // let leaves = encoder(b"pvss_data",  1);
 
-    println!("{}", root);
+    // println!("{:?}", leaves);
+
+    // let e = 2;
+
+    // let leaves = encoder(b"pvss_data",  e);
+
+    // println!("{:?}", leaves);
+
+    // let ecc_len = 2*e;
+
+    // let enc = Encoder::new(ecc_len);
+
+    // let converted_data: Vec<u8> = leaves.iter()
+    //                 .map(|s| s.parse::<u8>().expect("Failed to convert to u8"))
+    //                 .collect();
 
 
-    let mut leaf_values: Vec<String> = Vec::new();
-    leaf_values.push("d".to_string());
-    leaf_values.push("e".to_string());
 
 
-    let merkle_tree: MerkleTree<Sha256> = append_to_tree(merkle_tree.clone(), leaf_values.clone());
+    // let encoded = enc.encode(&converted_data[..]);
 
-    let root = get_root(merkle_tree.clone());
+    // println!("{:?}", encoded);
 
-    println!("{:?}", hash(root.as_bytes()));
+    // decoder(buffer, ecc_len/2);
+
+
+
+
+
+
+    // let index = 2;
+
+    // let mut leaf_values: Vec<String> = Vec::new();
+    // leaf_values.push("a".to_string());
+    // leaf_values.push("b".to_string());
+    // leaf_values.push("c".to_string());
+
+    // let merkle_tree = create_tree(leaf_values.clone());
+
+    
+    // let root = get_root(merkle_tree.clone());
+
+    // println!("{}", root);
+
+
+    // let mut leaf_values: Vec<String> = Vec::new();
+    // leaf_values.push("d".to_string());
+    // leaf_values.push("e".to_string());
+
+
+    // let merkle_tree: MerkleTree<Sha256> = append_to_tree(merkle_tree.clone(), leaf_values.clone());
+
+    // let root = get_root(merkle_tree.clone());
+
+    // println!("{:?}", hash(root.as_bytes()));
 
   
-    let mut leaf_values_to_prove: Vec<String> = Vec::new(); 
-    leaf_values_to_prove.push("c".to_string());
+    // let mut leaf_values_to_prove: Vec<String> = Vec::new(); 
+    // leaf_values_to_prove.push("x".to_string());
 
 
     
-    let indices_to_prove = vec![index];
+    // let indices_to_prove = vec![index];
 
-    let proof_bytes = create_proof_bytes(indices_to_prove.clone(), merkle_tree.clone());
+    // let proof_bytes = create_proof_bytes(indices_to_prove.clone(), merkle_tree.clone());
 
-    let merkle_root = merkle_tree.root().ok_or("couldn't get the merkle root").unwrap();
+    // let merkle_root = merkle_tree.root().ok_or("couldn't get the merkle root").unwrap();
 
 
-    let proof = merkle_proof(proof_bytes, indices_to_prove, leaf_values_to_prove, merkle_root, merkle_tree.leaves_len());
+    // let proof = merkle_proof(proof_bytes, indices_to_prove, leaf_values_to_prove, merkle_root, merkle_tree.leaves_len());
 
-    println!("{}", proof);
+    // println!("{}", proof);
 
 
    
