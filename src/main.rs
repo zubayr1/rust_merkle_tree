@@ -10,9 +10,7 @@ use reed_solomon::Decoder;
 
 use reed_solomon_erasure::galois_8::ReedSolomon;
 
-
-pub fn reedsomononenc(data: &[u8], num_nodes: usize, num_faults: usize)
-{
+pub fn to_shards(data: &[u8], num_nodes: usize, num_faults: usize) -> Vec<Vec<u8>> {
     let num_data_shards = num_nodes - num_faults;
     let shard_size = (data.len() + num_data_shards - 1) / num_data_shards;
     let mut data_with_suffix = data.to_vec();
@@ -26,35 +24,22 @@ pub fn reedsomononenc(data: &[u8], num_nodes: usize, num_faults: usize)
     }
     for _shard in 0..num_faults {
         result.push(vec![0; shard_size]);
-        
     }
-
-    println!("{:?}", result);
-
     let r = ReedSolomon::new(num_data_shards, num_faults).unwrap();
     r.encode(&mut result).unwrap();
+    result
+}
 
-    println!("{:?}", result);
-
-
-    let mut received: Vec<_> = result.iter().cloned().map(Some).collect();
-    received[0] = None;
-
-
-
-    r.reconstruct(&mut received).unwrap();
-    let mut result = Vec::with_capacity(num_data_shards * received[0].as_ref().unwrap().len());
+pub fn from_shards(mut data: Vec<Option<Vec<u8>>>, num_nodes: usize, num_faults: usize) -> Vec<u8> {
+    let num_data_shards = num_nodes - num_faults;
+    let r = ReedSolomon::new(num_data_shards, num_faults).unwrap();
+    r.reconstruct(&mut data).unwrap();
+    let mut result = Vec::with_capacity(num_data_shards * data[0].as_ref().unwrap().len());
     for shard in 0..num_data_shards {
-        result.append(&mut received[shard].clone().unwrap());
+        result.append(&mut data[shard].clone().unwrap());
     }
     result.truncate(result.len() - *result.last().unwrap() as usize);
-
-    println!("{:?}", result);
-
-    let string: String = String::from_utf8_lossy(&result).into();
-
-    println!("{:?}", string);
-    
+    result
 }
 
 pub fn encoder(pvss_data: &[u8], mut e: usize) -> Vec<String>
@@ -226,10 +211,34 @@ fn merkle_proof(proof_bytes: Vec<u8>, indices_to_prove: Vec<usize>, leaf_values_
 
 fn main() {
 
+    let original_data = "Hello".as_bytes();
+    let num_nodes = 16;      // Total number of shards
+    let num_faults = 7;      // Maximum number of erasures to tolerate
 
-    reedsomononenc(b"pvss", 12, 4);
+    // Encoding
+    let shards = to_shards(original_data, num_nodes, num_faults);
 
-    
+    println!("SHARDS: {:?}", shards);
+
+    let mut received: Vec<_> = shards.iter().cloned().map(Some).collect();
+    received[0] = None;
+    received[2] = None;
+    received[4] = None;
+    received[6] = None;
+
+    received[8] = None;
+    received[10] = None;
+    received[12] = None;
+
+    let reconstructed = from_shards(received, num_nodes, num_faults);
+
+    println!("RECONSTRUCTED: {:?}", reconstructed);
+
+    let string: String = String::from_utf8_lossy(&reconstructed).into();
+
+    println!("String: {}", string);
+
+
     // let leaves = encoder(b"pvss_data",  1);
 
     // println!("{:?}", leaves);
